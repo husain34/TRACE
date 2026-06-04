@@ -4,7 +4,7 @@
 
 # TRACE — Temporal Retrieval And Context Engine
 
-> **Self-healing, hierarchical memory for long-running LLM agents.**  
+> **Hierarchical, background tree organizing memory for long-running LLM agents.**  
 > Reduce context loss. Reduce broken agent tasks. Stop paying for tokens on chat history you don't need.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://python.org)
@@ -24,7 +24,7 @@
 3. [The Architecture: How TRACE Fixes It](#3-the-architecture-how-trace-fixes-it)
    - [The Foundation — ChatIndex & the B+Tree](#31-the-foundation--chatindex--the-btree)
    - [Feature 1 — Multi-Path Surgical Retrieval](#32-feature-1--multi-path-surgical-retrieval)
-   - [Feature 2 — Axiomatic Self-Healing Reorganization](#33-feature-2--axiomatic-self-healing-reorganization)
+   - [Feature 2 — Background Tree Organizer](#33-feature-2--background-tree-organizer)
    - [Feature 3 — Trivial Leaf Archiving](#34-feature-3--trivial-leaf-archiving)
 4. [Installation](#4-installation)
 5. [Quick Start: The Nexus Terminal](#-quick-start-the-nexus-terminal)
@@ -52,7 +52,7 @@ TRACE is a Python library that gives your LLM agent **structured, searchable, se
 
 Instead of naïvely stuffing an ever-growing chat log into every prompt, TRACE organises every conversation exchange into a **hierarchical B+Tree of named topic branches**. When the agent needs context, TRACE performs a fast cosine similarity search across topic summaries and retrieves only the *surgically relevant* branches — not the entire history.
 
-At rest (while the agent is not actively chatting), TRACE's **self-healing reorganizer** evaluates the entire tree against four strict axioms and merges semantically related branches under shared parents — inspired by memory consolidation processes.
+At rest (while the agent is not actively chatting), TRACE's **background reorganizer** evaluates the entire tree against four strict axioms and merges semantically related branches under shared parents — inspired by memory consolidation processes.
 
 The result: an agent **designed to preserve cross-session constraints through hierarchical retrieval**, that reduces hallucination of stale context, and operates at **a fraction of the token cost** of sliding-window or full-history approaches.
 
@@ -89,6 +89,12 @@ A fixed-size sliding window is the most common approach — and it works well fo
 - **No structure**: a flat list tells the LLM nothing about *which* topics are related or *which* branch an earlier constraint belongs to.
 
 For a simple chatbot or a document Q&A tool, a sliding window is perfectly fine. For a long-running agent performing multi-step tasks across sessions, it is catastrophic.
+
+### Why not MemGPT or Zep?
+
+MemGPT is incredibly powerful, but it functions like a full operating system with tiered memory (RAM, disk) that the LLM must explicitly learn to manage via function calls. This introduces significant overhead and requires highly capable models. 
+
+TRACE is meant to be a **lightweight, drop-in component**, not a full runtime environment. It focuses specifically on modelling conversations as a hierarchical tree to natively surface multi-hop constraints without forcing the LLM to actively manage its own memory banks.
 
 ---
 
@@ -158,7 +164,7 @@ Result: The AI aggressively stopped the user.
 
 ---
 
-### 3.3 Feature 2 — Axiomatic Self-Healing Reorganization
+### 3.3 Feature 2 — Background Tree Organizer
 
 <div align="center">
   <img src="assets/reorganization.png" alt="B+Tree Reorganization Diagram">
@@ -449,6 +455,8 @@ ROOT (sub-nodes: 3)
 ### 6.2 `VectorDatabase`
 
 A local SQLite vector store with two active tables: conversation vectors and topic summaries.
+
+> **Note on Scaling:** TRACE uses pure Python (`sqlite3` and `struct`) to avoid heavy dependencies and run instantly on any machine. This is perfectly sufficient for local agents and moderate conversation histories. However, for massive scale (millions of vectors), you will need to swap this module for a dedicated vector database like FAISS or Chroma.
 
 ```python
 from trace_memory import VectorDatabase
