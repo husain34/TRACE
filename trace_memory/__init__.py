@@ -27,7 +27,7 @@ from .prompt_synthesizer import PromptSynthesizer
 
 __version__ = "1.0.0"
 __author__  = "Husain"
-__license__ = "MIT"
+__license__ = "Apache-2.0"
 
 __all__ = [
     # Tree

@@ -217,7 +217,7 @@ pip install -e .
 | Package | Purpose |
 |---|---|
 | `openai>=1.0.0` | LLM API client (works with any OpenAI-compatible endpoint) |
-| `python-dotenv>=1.0` | `.env` file support |
+| `python-dotenv>=1.0.0` | `.env` file support |
 
 > **Note**: TRACE requires the bundled `trace._llm_utils` module (which provides `ChatGPT_API` and `extract_json`) for internal LLM calls.
 >
@@ -225,7 +225,49 @@ pip install -e .
 
 ---
 
-## 🚀 Quick Start: The Nexus Terminal
+### Minimal Integration (10 lines)
+
+If you already have a chat loop and just want to plug TRACE in, this is all you need:
+
+```python
+import openai
+from trace_memory import CTree, VectorDatabase, PromptSynthesizer
+
+# 1. Boot
+client = openai.OpenAI(api_key="sk-...", base_url="http://127.0.0.1:1234/v1")
+def embed(text): return client.embeddings.create(input=[text], model="nomic-embed-text").data[0].embedding
+
+tree = CTree(api_key="sk-...", model="gpt-4o-mini", embed_fn=embed)
+tree.vdb = VectorDatabase("session.db")
+synth = PromptSynthesizer(ctree=tree, vector_db=tree.vdb)
+
+# 2. Each turn: build prompt → call LLM → store exchange
+while True:
+    user_input = input("You: ")
+    system_prompt = synth.synthesize_prompt(
+        user_query      = user_input,
+        query_vector    = embed(user_input),
+        active_node     = tree.current_node,
+        recent_messages = tree.conversation[-6:],
+    )
+    response = client.chat.completions.create(
+        model    = "gpt-4o-mini",
+        messages = [{"role": "system", "content": system_prompt},
+                    *tree.conversation[-10:],
+                    {"role": "user", "content": user_input}],
+    )
+    reply = response.choices[0].message.content
+    tree.add([{"role": "user", "content": user_input},
+              {"role": "assistant", "content": reply}])
+    print(f"AI: {reply}")
+
+# 3. When the agent is idle, consolidate memory
+stats = tree.reorganize(similarity_threshold=0.55, prune_trivial_leaves=True)
+```
+
+---
+
+## 5. 🚀 Quick Start: The Nexus Terminal
 
 TRACE comes with a fully-featured, gorgeous Terminal UI chatbot out of the box. It is designed as a lightweight sandbox just for testing out TRACE—seeing how it works, running tests, and exploring the engine without heavy frontend overhead.
 
@@ -270,9 +312,10 @@ from trace_memory import CTree
 ```python
 CTree(
     max_children:   int = 5,
-    api_key:        str = None,   # falls back to OPENAI_API_KEY env var
+    api_key:        str = None,        # falls back to OPENAI_API_KEY env var
     model:          str = "gpt-4o-mini",
-    auto_save_path: str = None,   # auto-saves tree structure (not VDB) after every add() if set
+    auto_save_path: str = None,        # auto-saves tree structure (not VDB) after every add() if set
+    embed_fn:       Callable = None,   # optional: inject your embed function at construction time
 )
 ```
 
@@ -606,7 +649,7 @@ TRACE loads `.env` automatically if `python-dotenv` is installed.
 | Package | Version | Required |
 |---|---|---|
 | `openai` | ≥ 1.0.0 | ✅ Yes |
-| `python-dotenv` | ≥ 1.0 | ✅ Yes |
+| `python-dotenv` | ≥ 1.0.0 | ✅ Yes |
 | `sqlite3` | built-in | ✅ Yes (no install needed) |
 | `struct` | built-in | ✅ Yes (no install needed) |
 
