@@ -8,6 +8,7 @@
 > Reduce context loss. Reduce broken agent tasks. Stop paying for tokens on chat history you don't need.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://python.org)
+[![PyPI version](https://badge.fury.io/py/trace-memory.svg)](https://badge.fury.io/py/trace-memory)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![OpenAI-compatible](https://img.shields.io/badge/LLM-OpenAI%20compatible-orange)](https://platform.openai.com/docs/api-reference)
 [![Benchmark](https://img.shields.io/badge/MemoryAgentBench-91.13%25-success)](benchmark_results/trace_eventqa_64k_results.json)
