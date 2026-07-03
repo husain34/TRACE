@@ -210,44 +210,29 @@ When `prune_trivial_leaves=True` is passed to `reorganize()`, TRACE detects Mess
 
 ## 4. Installation
 
-### From Source (recommended until PyPI release)
-
 ```bash
-git clone https://github.com/husain34/TRACE.git
-cd TRACE
-pip install -e .
+pip install trace-memory
 ```
-
-### Dependencies installed automatically
-
-| Package | Purpose |
-|---|---|
-| `openai>=1.0.0` | LLM API client (works with any OpenAI-compatible endpoint) |
-| `python-dotenv>=1.0.0` | `.env` file support |
-
-> **Note**: TRACE requires the bundled `trace._llm_utils` module (which provides `ChatGPT_API` and `extract_json`) for internal LLM calls.
->
-> **Note**: TRACE's VectorDatabase uses only Python's built-in `sqlite3` and `struct` modules — no external vector DB dependency required.
 
 ---
 
 ### Minimal Integration (10 lines)
 
-If you already have a chat loop and just want to plug TRACE in, this is all you need:
+If you already have a chat loop and just want to plug TRACE in, this is all you need. Since TRACE includes a powerful built-in local embedder (`BAAI/bge-base-en-v1.5`), you don't even need to configure your own embedding model!
 
 ```python
-import openai
-from trace_memory import CTree, VectorDatabase, PromptSynthesizer
+from trace_memory.ctree import CTree
+from trace_memory.vector_db import VectorDatabase
+from trace_memory.prompt_synthesizer import PromptSynthesizer
 
-# 1. Boot
-client = openai.OpenAI(api_key="sk-...", base_url="http://127.0.0.1:1234/v1")
-def embed(text): return client.embeddings.create(input=[text], model="nomic-embed-text").data[0].embedding
-
-tree = CTree(api_key="sk-...", model="gpt-4o-mini", embed_fn=embed)
+# 1. Boot the tree and attach the Vector DB
+tree = CTree(api_key="sk-...", model="gpt-4o-mini")
 tree.vdb = VectorDatabase("session.db")
+
+# 2. Setup the Prompt Synthesizer
 synth = PromptSynthesizer(ctree=tree, vector_db=tree.vdb)
 
-# 2. Each turn: build prompt → call LLM → store exchange
+# 3. Each turn: build prompt → call LLM → store exchange
 while True:
     user_input = input("You: ")
     system_prompt = synth.synthesize_prompt(
