@@ -10,6 +10,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://python.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![OpenAI-compatible](https://img.shields.io/badge/LLM-OpenAI%20compatible-orange)](https://platform.openai.com/docs/api-reference)
+[![Benchmark](https://img.shields.io/badge/MemoryAgentBench-91.13%25-success)](benchmark_results/trace_eventqa_64k_results.json)
 
 > **This repo has two parts — they are completely independent:**
 > - 🧠 **`trace_memory/`** — the lightweight memory engine. Install it, import it, and integrate it into your own app. Zero UI, zero bloat.
