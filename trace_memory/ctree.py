@@ -482,11 +482,13 @@ class CTree:
         classification = self._llm_classify_message_exchange(
             user_msg, assistant_msg, candidate_nodes, system_msg
         )
+        topic_name = classification.get("new_topic_name", "")
         if classification["belongs_to_current"]:
-            return candidate_nodes[-1]
+            return self._create_new_topic_for_message(
+                user_msg, assistant_msg, candidate_nodes[-1], topic_name, system_msg
+            )
         parent_index = classification.get("new_topic_parent_index", len(candidate_nodes) - 1)
         parent_node  = candidate_nodes[parent_index]
-        topic_name   = classification.get("new_topic_name", "")
         return self._create_new_topic_for_message(
             user_msg, assistant_msg, parent_node, topic_name, system_msg
         )
@@ -601,10 +603,11 @@ class CTree:
             f"3. CRITICAL: When choosing new_topic_parent_index — if the new topic is completely unrelated "
             f"to all listed ancestors, you MUST choose index 0 (the root/top-level). Only choose a deeper "
             f"ancestor if the new topic is a genuine sub-topic of that ancestor.\n"
-            f"4. Do NOT nest an unrelated topic under the current topic just because it is the most recent.\n\n"
+            f"4. Do NOT nest an unrelated topic under the current topic just because it is the most recent.\n"
+            f"5. ALWAYS provide a concise 'new_topic_name' (2-5 words) that summarizes this specific exchange, regardless of belongs_to_current.\n\n"
             f"Respond ONLY with valid JSON:\n"
             f"{{\"reasoning\": \"brief explanation\", \"belongs_to_current\": true|false, "
-            f"\"new_topic_name\": \"name (or N/A)\", \"new_topic_parent_index\": <index or N/A>}}\n\n"
+            f"\"new_topic_name\": \"name\", \"new_topic_parent_index\": <index or N/A>}}\n\n"
             f"Output ONLY the JSON, no other text."
         )
         try:
