@@ -124,6 +124,23 @@ def generate_completion(messages, temperature=0.7, max_tokens=1500, model=None):
     except Exception as e:
         return f'{COLOR_WARNING}[LM Studio Error] {e}{RESET}'
 
+_fallback_embedder = None
+
+def _get_fallback_embedding(text):
+    global _fallback_embedder
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError:
+        raise RuntimeError("Embedding API failed, and 'sentence-transformers' is not installed for fallback. Please install it (e.g., pip install sentence-transformers).")
+    
+    if _fallback_embedder is None:
+        print(f"\n{COLOR_WARNING}[Fallback] Loading local embedding model (BAAI/bge-base-en-v1.5)...{RESET}")
+        # BAAI/bge-base-en-v1.5 is a highly rated embedding model
+        _fallback_embedder = SentenceTransformer("BAAI/bge-base-en-v1.5")
+    
+    # encode returns a numpy array, convert to list of floats
+    return _fallback_embedder.encode(text).tolist()
+
 def get_embedding(text, model=EMBEDDING_MODEL):
     client = get_embedding_client()
     cleaned = text.replace('\n', ' ')
@@ -131,7 +148,10 @@ def get_embedding(text, model=EMBEDDING_MODEL):
         response = client.embeddings.create(input=[cleaned], model=model)
         return response.data[0].embedding
     except Exception as e:
-        raise RuntimeError(f'Failed to generate embedding: {e}') from e
+        try:
+            return _get_fallback_embedding(cleaned)
+        except Exception as fallback_e:
+            raise RuntimeError(f'Failed to generate embedding via API ({e}) and fallback also failed: {fallback_e}') from fallback_e
 
 def _get_loaded_model_ids():
     try:

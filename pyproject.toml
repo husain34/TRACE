@@ -32,6 +32,7 @@ classifiers = [
 dependencies = [
     "openai>=1.0.0",         # LLM API client (supports any OpenAI-compatible endpoint)
     "python-dotenv>=1.0.0",  # .env file support
+    "sentence-transformers>=2.2.0", # local fallback for embeddings
 ]
 
 

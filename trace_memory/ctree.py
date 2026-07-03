@@ -57,6 +57,22 @@ from ._llm_utils import ChatGPT_API, extract_json
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+_fallback_embedder = None
+def _default_embed_fn(text: str) -> List[float]:
+    global _fallback_embedder
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError:
+        raise RuntimeError("Embedding function not provided, and 'sentence-transformers' is not installed for fallback. Please install it (e.g., pip install sentence-transformers).")
+    
+    if _fallback_embedder is None:
+        import sys
+        print("\n[TRACE] Loading default local embedding model (BAAI/bge-base-en-v1.5)...", file=sys.stderr)
+        _fallback_embedder = SentenceTransformer("BAAI/bge-base-en-v1.5")
+    
+    return _fallback_embedder.encode(text).tolist()
+
+
 def _safe_int(value, fallback):
     if value is None:
         return fallback
@@ -251,7 +267,7 @@ class CTree:
         self.auto_save_path: Optional[str]  = auto_save_path
         self._archived_nodes: List[MessageNode] = []
         self.vdb            = None   # inject: VectorDatabase instance
-        self.embed_fn       = embed_fn   # inject: callable(text) -> List[float]
+        self.embed_fn       = embed_fn or _default_embed_fn   # inject: callable(text) -> List[float]
 
         # API key resolution
         if api_key:
