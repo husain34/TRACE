@@ -110,9 +110,9 @@ TRACE builds on the open-source **ChatIndex** architecture (credit: Mingtian Zha
 - **Internal nodes (TopicNodes)** — LLM-generated topic labels and summaries for each branch.
 - **Root** — a virtual anchor node.
 
-Every time an exchange is added (`tree.add()`), an LLM call classifies whether the exchange continues the current topic or starts a new branch. If a new branch, the LLM selects the most appropriate parent in the ancestry chain.
+Every time an exchange is added (`tree.add()`), TRACE forces the creation of a **new TopicNode** containing exactly one exchange. The LLM determines if it continues the current topic or starts a new branch. If it continues the topic, the new node is simply chained as a direct child of the previous one. This deep chronological chaining solves context truncation and ensures perfect, granular summarization for every single exchange.
 
-This gives TRACE a **structured map of the entire conversation history** — not a flat log — with topic metadata at every branch.
+This gives TRACE a **deep, structured map of the entire conversation history** — not a flat log — with highly granular topic metadata at every single link in the chain.
 
 **What TRACE adds to ChatIndex**: ChatIndex primarily retrieves context through a single traversal path. While effective for hierarchical exploration, information spread across multiple semantically related branches may require multiple retrieval steps. TRACE augments this with vector-based retrieval across topic summaries, allowing context from multiple branches to be surfaced simultaneously.
 
