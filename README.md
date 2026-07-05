@@ -612,14 +612,24 @@ tree = CTree(api_key="sk-...", model="gpt-4o-mini")
 
 ### 7.3 With NVIDIA NIM / any OpenAI-compatible endpoint
 
-```python
-import os
-os.environ["OPENAI_BASE_URL"] = "https://integrate.api.nvidia.com/v1"
-os.environ["OPENAI_API_KEY"]  = "nvapi-..."
+Point the `base_url` to your endpoint.
 
-from trace_memory import CTree
-tree = CTree(model="meta/llama-3.1-70b-instruct")
+```python
+tree = CTree(
+    api_key="your-nvidia-api-key",
+    base_url="https://integrate.api.nvidia.com/v1",
+    model="meta/llama-3.1-8b-instruct"
+)
 ```
+
+### 7.4 Best Practices for LLM Selection
+
+**Do not use "Reasoning" models (DeepSeek R1, Claude 3.7 Sonnet thinking mode, o1) for the internal `CTree` engine.**
+
+When `CTree` runs in the background, it performs simple, deterministic classification tasks (e.g., naming a topic in 3 words, or extracting a JSON boolean). Reasoning models are built for complex logic and will waste massive amounts of compute "thinking" about simple tasks. Worse, reasoning models often exceed TRACE's strict internal token limits (`max_tokens=50` or `200`) designed to keep background operations fast, causing the LLM to get cut off mid-thought and breaking the internal JSON parsers.
+
+*   **For the `CTree` internal model:** Always use a fast, standard model (e.g., `gpt-4o-mini`, `meta-llama-3.1-8b-instruct`).
+*   **For your actual chat application:** You can (and should!) use whatever massive reasoning model you prefer to generate the final response to the user. TRACE is completely decoupled from your front-end chat completion.
 
 ---
 

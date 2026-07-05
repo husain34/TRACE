@@ -159,8 +159,8 @@ class PromptSynthesizer:
         query_vector:           list,
         active_node,
         recent_messages:        list,
-        top_k_history:          int   = 2,
-        min_history_similarity: float = 0.50,
+        top_k_history:          int   = 5,
+        min_history_similarity: float = 0.25,
     ) -> str:
         """
         Assemble the full enriched system prompt for the next LLM turn.

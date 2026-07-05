@@ -94,7 +94,7 @@ class VectorDatabase:
 
 
 
-    def search_conversation(self, query_vector, top_k=2, min_similarity=0.5):
+    def search_conversation(self, query_vector, top_k=5, min_similarity=0.25):
         if not query_vector:
             return []
         conn = sqlite3.connect(self.db_path)
