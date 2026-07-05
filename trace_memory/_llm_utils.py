@@ -20,6 +20,7 @@ def ChatGPT_API(
     model: str,
     prompt: str,
     api_key: str = None,
+    base_url: str = None,
     chat_history: list = None,
     temperature: float = 0,
     max_tokens: int = None,
@@ -42,10 +43,10 @@ def ChatGPT_API(
     str  — Response text, or "Error" after all retries are exhausted.
     """
     max_retries = 10
-    base_url = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:1234/v1")
+    base_url_to_use = base_url or os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:1234/v1")
     api_key_to_use = api_key or os.getenv("OPENAI_API_KEY") or "lm-studio"
 
-    client = openai.OpenAI(api_key=api_key_to_use, base_url=base_url)
+    client = openai.OpenAI(api_key=api_key_to_use, base_url=base_url_to_use)
 
     for i in range(max_retries):
         try:

@@ -257,6 +257,7 @@ class CTree:
         self,
         max_children: int = 5,
         api_key:      str = None,
+        base_url:     str = None,
         model:        str = "gpt-4o-mini",
         auto_save_path: str = None,
         embed_fn:     Optional[Callable[[str], List[float]]] = None,
@@ -268,6 +269,7 @@ class CTree:
         self._archived_nodes: List[MessageNode] = []
         self.vdb            = None   # inject: VectorDatabase instance
         self.embed_fn       = embed_fn or _default_embed_fn   # inject: callable(text) -> List[float]
+        self.base_url       = base_url
 
         # API key resolution
         if api_key:
@@ -275,10 +277,7 @@ class CTree:
         elif os.getenv("OPENAI_API_KEY"):
             self.api_key = os.getenv("OPENAI_API_KEY")
         else:
-            raise ValueError(
-                "API key must be provided via api_key= or the "
-                "OPENAI_API_KEY environment variable."
-            )
+            self.api_key = "lm-studio"
 
         self.root: TopicNode = TopicNode(
             topic_name="ROOT",
@@ -536,7 +535,7 @@ class CTree:
             f"Message: {content}\n\nRespond with ONLY the topic name, nothing else."
         )
         try:
-            return ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.3, max_tokens=50).strip()
+            return ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.3, max_tokens=50).strip()
         except Exception as e:
             print(f"LLM error in topic generation: {e}")
             return f"Topic at index {len(self.conversation)}"
@@ -555,7 +554,7 @@ class CTree:
             f"Respond with ONLY the topic name, nothing else."
         )
         try:
-            return ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.3, max_tokens=50).strip()
+            return ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.3, max_tokens=50).strip()
         except Exception as e:
             print(f"LLM error in topic generation from message: {e}")
             return f"Topic at message {len(self.conversation) // 2}"
@@ -569,7 +568,7 @@ class CTree:
             f"in 1-2 sentences.\n\n{content}\n\nSummary:"
         )
         try:
-            return ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.3, max_tokens=100).strip()
+            return ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.3, max_tokens=100).strip()
         except Exception as e:
             print(f"LLM error in summarization: {e}")
             return f"Discussion about {topic_name}"
@@ -611,7 +610,7 @@ class CTree:
             f"Output ONLY the JSON, no other text."
         )
         try:
-            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.1, max_tokens=200)
+            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.1, max_tokens=200)
             result   = extract_json(response)
             if "new_topic_parent_index" in result:
                 raw    = result["new_topic_parent_index"]
@@ -650,7 +649,7 @@ class CTree:
             f"Output ONLY the JSON, no other text."
         )
         try:
-            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.3, max_tokens=500)
+            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.3, max_tokens=500)
             result   = extract_json(response)
             if isinstance(result, list):
                 return result
@@ -674,7 +673,7 @@ class CTree:
             f'Respond with ONLY: {{"reasoning": "...", "split_index": <int 1–{len(topic_children)-1}>}}'
         )
         try:
-            response    = ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.2, max_tokens=200)
+            response    = ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.2, max_tokens=200)
             result      = extract_json(response)
             split_index = _safe_int(result.get("split_index"), len(topic_children) // 2)
             return max(1, min(split_index, len(topic_children) - 1))
@@ -690,7 +689,7 @@ class CTree:
             f"Subtopics: {text}\n\nRespond with ONLY the topic name."
         )
         try:
-            name = ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.3, max_tokens=50).strip()
+            name = ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.3, max_tokens=50).strip()
             return name.strip("\"'")
         except Exception:
             return f"{parent_node.topic_name} – Part"
@@ -708,7 +707,7 @@ class CTree:
             f'"topic_indices": [...]}}]}}'
         )
         try:
-            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.3, max_tokens=800)
+            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.3, max_tokens=800)
             result   = extract_json(response)
             if isinstance(result, dict) and "groups" in result:
                 groups = result["groups"]
@@ -882,7 +881,7 @@ class CTree:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     @classmethod
-    def load(cls, filepath: str, api_key: str = None, model: str = None, embed_fn: Optional[Callable[[str], List[float]]] = None) -> "CTree":
+    def load(cls, filepath: str, api_key: str = None, base_url: str = None, model: str = None, embed_fn: Optional[Callable[[str], List[float]]] = None) -> "CTree":
         """
         Reconstruct a ``CTree`` from a previously saved JSON file.
 
@@ -906,6 +905,7 @@ class CTree:
         tree = cls(
             max_children = data.get("max_children", 5),
             api_key      = api_key,
+            base_url     = base_url,
             model        = model or "gpt-4o-mini",
             embed_fn     = embed_fn,
         )
@@ -997,7 +997,7 @@ class CTree:
             f'{{"related": true|false, "reason": "short reason", "merge_direction": "a_into_b"|"b_into_a"|"N/A"}}'
         )
         try:
-            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, temperature=0.1, max_tokens=300)
+            response = ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.1, max_tokens=300)
             result   = extract_json(response)
             result.setdefault("related", False)
             result.setdefault("merge_direction", "N/A")

@@ -305,7 +305,8 @@ from trace_memory import CTree
 ```python
 CTree(
     max_children:   int = 5,
-    api_key:        str = None,        # falls back to OPENAI_API_KEY env var
+    api_key:        str = None,        # optional: falls back to OPENAI_API_KEY env var or "lm-studio"
+    base_url:       str = None,        # optional: route to custom endpoints (e.g. vLLM, Ollama, LM Studio)
     model:          str = "gpt-4o-mini",
     auto_save_path: str = None,        # auto-saves tree structure (not VDB) after every add() if set
     embed_fn:       Callable = None,   # optional: inject your embed function at construction time
@@ -375,7 +376,7 @@ tree.save("sessions/chat_001.json", save_conversation=True)
 
 ---
 
-##### `CTree.load(filepath: str, api_key: str = None, model: str = None) -> CTree`
+##### `CTree.load(filepath: str, api_key: str = None, base_url: str = None, model: str = None) -> CTree`
 
 Restore a tree from a JSON file.
 
@@ -574,12 +575,18 @@ ConversationVector(
 ### 7.1 With LM Studio (local)
 
 ```python
+from trace_memory import CTree
+# Connect directly via parameters
+tree = CTree(
+    base_url="http://127.0.0.1:1234/v1",
+    api_key="lm-studio",
+    model="meta-llama-3.1-8b-instruct"
+)
+
+# Or set environment variables globally
 import os
 os.environ["OPENAI_BASE_URL"] = "http://127.0.0.1:1234/v1"
 os.environ["OPENAI_API_KEY"]  = "lm-studio"
-
-from trace_memory import CTree
-tree = CTree(model="meta-llama-3.1-8b-instruct")
 ```
 
 Or use a `.env` file in your project root:
