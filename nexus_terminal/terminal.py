@@ -733,19 +733,6 @@ def run_chat_session(tree, is_new=False, temp_filepath=None):
             spinner.start()
             try:
                 tree.add([{'role': 'user', 'content': user_input}, {'role': 'assistant', 'content': ai_response}])
-                if getattr(tree, 'vdb', None) and query_vector:
-                    try:
-                        assistant_vector = get_embedding(ai_response)
-                        msg_index_user = len(tree.conversation) - 2
-                        msg_index_assistant = len(tree.conversation) - 1
-                        ancestors = tree.get_ancestors(tree.current_node, include_self=True, exclude_root=True)
-                        thread_path = ' → '.join((n.topic_name for n in ancestors)) if ancestors else 'ROOT'
-                        user_v = ConversationVector(message_id=f'msg_{msg_index_user}_user', message_index=msg_index_user, role='user', text=user_input, embedding=query_vector, timestamp=time.time(), thread_path=thread_path)
-                        tree.vdb.add_conversation_message(user_v)
-                        assistant_v = ConversationVector(message_id=f'msg_{msg_index_assistant}_assistant', message_index=msg_index_assistant, role='assistant', text=ai_response, embedding=assistant_vector, timestamp=time.time(), thread_path=thread_path)
-                        tree.vdb.add_conversation_message(assistant_v)
-                    except Exception:
-                        pass
             except Exception as tree_err:
                 sys.stdout.write(f'\n {COLOR_WARNING}[CTree] Failed to index exchange: {tree_err}{RESET}\n')
             finally:

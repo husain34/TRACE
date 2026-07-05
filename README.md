@@ -466,6 +466,9 @@ vdb = VectorDatabase("path/to/session.db")  # creates the DB if it doesn't exist
 
 Store an embedded past conversation message for cross-thread recall.
 
+> [!NOTE]
+> As of TRACE 1.0.4, `CTree.add()` calls this **automatically** behind the scenes. You only need to call this manually if you are managing the Vector DB independently of a CTree.
+
 ```python
 from trace_memory import ConversationVector
 import time, uuid

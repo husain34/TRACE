@@ -427,6 +427,35 @@ class CTree:
         else:
             self._add_message(msg_dict)
 
+        if self.vdb:
+            from .vector_db import ConversationVector
+            import uuid
+            
+            ancestors = self.get_ancestors(self.current_node, include_self=True, exclude_root=False)
+            thread_path = " → ".join([n.topic_name for n in ancestors]) if ancestors else "ROOT"
+            
+            start_idx = msg_dict["index"]
+            for i, msg in enumerate(messages):
+                role = msg.get("role", "")
+                text = msg.get("content", "")
+                if not text or not isinstance(text, str):
+                    continue
+                
+                try:
+                    embed_vec = self.embed_fn(text)
+                    c_vec = ConversationVector(
+                        message_id=str(uuid.uuid4()),
+                        message_index=start_idx + i,
+                        role=role,
+                        text=text,
+                        embedding=embed_vec,
+                        timestamp=time.time(),
+                        thread_path=thread_path
+                    )
+                    self.vdb.add_conversation_message(c_vec)
+                except Exception:
+                    pass
+
         if self.auto_save_path:
             self.save(self.auto_save_path, save_conversation=True)
 
