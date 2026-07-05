@@ -542,7 +542,7 @@ def list_and_load_chat_menu():
     spinner = Spinner(f"Reconstructing CTree from '{target['filename']}'…")
     spinner.start()
     try:
-        tree = CTree.load(target['filepath'], api_key=LM_STUDIO_API_KEY, model=TEXT_MODEL, embed_fn=get_embedding)
+        tree = CTree.load(target['filepath'], api_key=LM_STUDIO_API_KEY, base_url=LM_STUDIO_URL, model=TEXT_MODEL, embed_fn=get_embedding)
         tree.auto_save_path = target['filepath']
         spinner.stop()
         sys.stdout.write(f' {COLOR_SUCCESS}✓ Tree loaded successfully!{RESET}\n')
@@ -783,7 +783,7 @@ def main():
             ts = int(time.time())
             temp_filename = f'temp_session_{ts}.json'
             temp_filepath = os.path.join(SAVED_CHATS_DIR, temp_filename)
-            tree = CTree(max_children=5, api_key=LM_STUDIO_API_KEY, model=TEXT_MODEL, auto_save_path=temp_filepath, embed_fn=get_embedding)
+            tree = CTree(max_children=5, api_key=LM_STUDIO_API_KEY, base_url=LM_STUDIO_URL, model=TEXT_MODEL, auto_save_path=temp_filepath, embed_fn=get_embedding)
             db_path = temp_filepath.replace('.json', '_vectors.db')
             tree.vdb = VectorDatabase(db_path)
             tree.synthesizer = PromptSynthesizer(tree, tree.vdb)

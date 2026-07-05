@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name            = "trace-memory"
-version         = "1.0.2"
+version         = "1.0.3"
 description     = "TRACE — Temporal Retrieval And Context Engine: self-healing hierarchical memory for LLM agents."
 readme          = "README.md"
 license         = { text = "Apache-2.0" }
