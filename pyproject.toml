@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name            = "trace-memory"
-version         = "1.0.5"
+version         = "1.0.6"
 description     = "TRACE — Temporal Retrieval And Context Engine: self-healing hierarchical memory for LLM agents."
 readme          = "README.md"
 license         = { text = "Apache-2.0" }
@@ -30,9 +30,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "openai>=1.0.0",         # LLM API client (supports any OpenAI-compatible endpoint)
-    "python-dotenv>=1.0.0",  # .env file support
-    "sentence-transformers>=2.2.0", # local fallback for embeddings
+    "openai>=1.0.0",                   # LLM API client (supports any OpenAI-compatible endpoint)
+    "python-dotenv>=1.0.0",            # .env file support
+    "sentence-transformers>=2.2.0",    # local fallback embedder (BAAI/bge-base-en-v1.5)
+    "numpy>=1.21.0",                   # cosine similarity in vector_db
 ]
 
 

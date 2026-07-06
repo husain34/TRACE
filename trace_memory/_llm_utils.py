@@ -76,7 +76,6 @@ def _normalize_for_json(text: str) -> str:
     """Normalise common LLM JSON formatting quirks before parsing."""
     text = text.replace(": N/A", ": null")
     text = text.replace(": True",  ": true").replace(": False", ": false").replace(": None", ": null")
-    text = text.replace(": True,", ": true,").replace(": False,", ": false,").replace(": None,", ": null,")
     text = text.replace(",}", "}").replace(",]", "]")
     text = text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
     text = " ".join(text.split())

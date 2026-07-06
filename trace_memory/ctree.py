@@ -13,7 +13,7 @@ exchange into a tree of named topic branches, with:
 
 Typical usage
 -------------
-    from trace import CTree, VectorDatabase, PromptSynthesizer
+    from trace_memory import CTree, VectorDatabase, PromptSynthesizer
 
     # 1. Boot the engine
     tree = CTree(api_key="sk-...", model="gpt-4o-mini")
@@ -54,6 +54,7 @@ from typing import List, Dict, Optional, Tuple, Any, Callable
 from dataclasses import dataclass, field
 
 from ._llm_utils import ChatGPT_API, extract_json
+from .vector_db import cosine_similarity
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -94,15 +95,19 @@ class Node:
     ----------
     children       : Direct child nodes.
     parent         : Parent node (None for root).
-    sub_node_count : Cached count of direct children.
+    sub_node_count : Live count of direct children (dynamic property).
     created_at     : Unix timestamp of node birth (set once, never changed).
     """
 
-    def __init__(self, children=None, parent=None, sub_node_count=0):
+    def __init__(self, children=None, parent=None):
         self.children: List["Node"] = children or []
         self.parent: Optional["Node"] = parent
-        self.sub_node_count: int = sub_node_count
         self.created_at: float = time.time()
+
+    @property
+    def sub_node_count(self) -> int:
+        """Dynamically computed — always reflects the real number of direct children."""
+        return len(self.children)
 
     def is_leaf(self) -> bool:
         return len(self.children) == 0
@@ -365,8 +370,9 @@ class CTree:
                 end_index   = node.end_index,
                 depth       = depth,
             )
-        except Exception:
-            pass  # embedding failures must never crash the tree
+        except Exception as e:
+            import sys
+            print(f"[TRACE] \u26a0 VDB upsert failed for node '{node.topic_name}': {e}", file=sys.stderr)
 
     # ── Public: add exchange ──────────────────────────────────────────────────
 
@@ -541,33 +547,7 @@ class CTree:
         parent.children.append(new_topic)
         return new_topic
 
-    def _create_new_node(self, message, start_index, parent, topic_name=""):
-        if not topic_name or not topic_name.strip():
-            topic_name = self._llm_generate_topic(message, parent)
-        new_topic = TopicNode(
-            topic_name=topic_name,
-            start_index=start_index,
-            end_index=start_index,
-            parent=parent,
-        )
-        parent.children.append(new_topic)
-        return new_topic
-
     # ── LLM helpers ───────────────────────────────────────────────────────────
-
-    def _llm_generate_topic(self, message, parent=None) -> str:
-        content = message.get("content", "")
-        context = f"\nParent topic: {parent.topic_name}" if (parent and parent.topic_name != "ROOT") else ""
-        prompt  = (
-            f"Given the following message, generate a concise topic name "
-            f"(2-5 words) that captures its main subject.{context}\n\n"
-            f"Message: {content}\n\nRespond with ONLY the topic name, nothing else."
-        )
-        try:
-            return ChatGPT_API(self.model, prompt, api_key=self.api_key, base_url=self.base_url, temperature=0.3, max_tokens=50).strip()
-        except Exception as e:
-            print(f"LLM error in topic generation: {e}")
-            return f"Topic at index {len(self.conversation)}"
 
     def _llm_generate_topic_from_message(
         self, user_msg, assistant_msg, parent=None, system_msg=None
@@ -829,10 +809,11 @@ class CTree:
             def _in_subtree(n, target):
                 if n is target: return True
                 return any(_in_subtree(c, target) for c in n.children)
-            for sn in root_node.children:
-                if isinstance(sn, TopicNode) and _in_subtree(sn, self.current_node):
-                    break
-            else:
+            current_found = any(
+                isinstance(child, TopicNode) and _in_subtree(child, self.current_node)
+                for child in root_node.children
+            )
+            if not current_found:
                 self.current_node = last_subtopic_node
 
     # ── Public utilities ──────────────────────────────────────────────────────
@@ -951,38 +932,42 @@ class CTree:
     def _reconstruct_node(self, node_data: dict, parent):
         node_type = node_data.get("type", "topic")
         if node_type == "message":
-            msg_start_idx = node_data.get("message_index", node_data.get("pair_index", 0) * 2)
-            user_msg = assistant_msg = {}
+            msg_idx    = node_data.get("message_index", 0)
+            user_msg   = assistant_msg = {}
             system_msg = None
-            for i in range(max(0, msg_start_idx - 1), min(len(self.conversation), msg_start_idx + 4)):
-                if i < len(self.conversation) and self.conversation[i].get("role") == "user":
-                    if i > 0 and self.conversation[i - 1].get("role") == "system":
-                        system_msg = self.conversation[i - 1]
-                    user_msg = self.conversation[i]
-                    if i + 1 < len(self.conversation) and self.conversation[i + 1].get("role") == "assistant":
-                        assistant_msg = self.conversation[i + 1]
+            if self.conversation:
+                for i in range(max(0, msg_idx - 1), min(len(self.conversation), msg_idx + 4)):
+                    if self.conversation[i].get("role") == "user":
+                        user_msg = self.conversation[i]
+                        if i > 0 and self.conversation[i - 1].get("role") == "system":
+                            system_msg = self.conversation[i - 1]
+                        if i + 1 < len(self.conversation) and self.conversation[i + 1].get("role") == "assistant":
+                            assistant_msg = self.conversation[i + 1]
                         break
-            node = MessageNode(
-                user_message      = user_msg,
-                assistant_message = assistant_msg,
-                system_message    = system_msg,
-                message_index     = msg_start_idx,
-                parent            = parent,
+            else:
+                import warnings
+                warnings.warn(
+                    "[TRACE] Tree loaded without conversation history (save_conversation=False). "
+                    "MessageNode content will be empty. Re-save with save_conversation=True.",
+                    stacklevel=2,
+                )
+            return MessageNode(
+                user_message=user_msg, assistant_message=assistant_msg,
+                system_message=system_msg, message_index=msg_idx, parent=parent,
             )
-        else:
-            node = TopicNode(
-                topic_name  = node_data.get("topic_name", ""),
-                summary     = node_data.get("summary", ""),
-                start_index = node_data.get("start_index", 0),
-                end_index   = node_data.get("end_index", 0),
-                parent      = parent,
-            )
-            if "node_id" in node_data:
-                node.node_id = node_data["node_id"]
-            node.created_at = node_data.get("created_at", node.created_at)
-            for child_data in node_data.get("children", []):
-                node.children.append(self._reconstruct_node(child_data, parent=node))
-        node.sub_node_count = node_data.get("sub_node_count", 0)
+        # TopicNode
+        node = TopicNode(
+            topic_name  = node_data.get("topic_name", ""),
+            summary     = node_data.get("summary", ""),
+            start_index = node_data.get("start_index", 0),
+            end_index   = node_data.get("end_index", 0),
+            parent      = parent,
+        )
+        if "node_id" in node_data:
+            node.node_id = node_data["node_id"]
+        node.created_at = node_data.get("created_at", node.created_at)
+        for child_data in node_data.get("children", []):
+            node.children.append(self._reconstruct_node(child_data, parent=node))
         return node
 
     def _find_current_node(self, node):
@@ -1116,10 +1101,7 @@ class CTree:
             )
             print(f"Merged {stats['merged']} branches in {stats['duration_secs']:.1f}s")
         """
-        import time as _time
-        from .vector_db import cosine_similarity as _cos
-
-        t0      = _time.time()
+        t0      = time.time()
         merged  = pruned = skipped = 0
 
         # Phase 1 — collect frozen candidates
@@ -1165,7 +1147,7 @@ class CTree:
                 if na.node_id not in embeddings or nb.node_id not in embeddings:
                     skipped += 1
                     continue
-                sim = _cos(embeddings[na.node_id], embeddings[nb.node_id])
+                sim = cosine_similarity(embeddings[na.node_id], embeddings[nb.node_id])
                 if sim < similarity_threshold:
                     continue
                 older, newer = (na, nb) if na.created_at <= nb.created_at else (nb, na)
@@ -1215,5 +1197,5 @@ class CTree:
             "merged":        merged,
             "pruned":        pruned,
             "skipped":       skipped,
-            "duration_secs": _time.time() - t0,
+            "duration_secs": time.time() - t0,
         }

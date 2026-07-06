@@ -92,7 +92,7 @@ class PromptSynthesizer:
         _walk(self.tree.root)
         return result
 
-    def _get_surgical_context(self, query_vector) -> str:
+    def _get_surgical_context(self, query_vector, top_k_docs: int = 3) -> str:
         """
         Multi-path surgical retrieval (the heart of TRACE):
 
@@ -138,7 +138,7 @@ class PromptSynthesizer:
                     unique_nodes_ordered.append((node, similarity))
 
         # Now rank paths by similarity and take the top-3
-        all_ancestor_sets_ranked = sorted(all_ancestor_sets, key=lambda x: x[0], reverse=True)[:3]
+        all_ancestor_sets_ranked = sorted(all_ancestor_sets, key=lambda x: x[0], reverse=True)[:top_k_docs]
 
         blocks = ["── SURGICAL MEMORY CONTEXT (top matched topics + ancestry) ──"]
         for i, (similarity, ancestors) in enumerate(all_ancestor_sets_ranked, 1):
@@ -159,6 +159,7 @@ class PromptSynthesizer:
         query_vector:           list,
         active_node,
         recent_messages:        list,
+        top_k_docs:             int   = 3,     # max topic branches to surface in surgical context
         top_k_history:          int   = 5,
         min_history_similarity: float = 0.25,
     ) -> str:
@@ -171,6 +172,7 @@ class PromptSynthesizer:
         query_vector           : Embedding of *user_query*.
         active_node            : ``tree.current_node``.
         recent_messages        : Tail of ``tree.conversation`` (e.g. last 6 msgs).
+        top_k_docs             : Max number of topic-branch paths to surface in surgical context.
         top_k_history          : Max past conversation messages to recall.
         min_history_similarity : Minimum cosine score for conversation recall.
 
@@ -196,7 +198,7 @@ class PromptSynthesizer:
             )
         """
         # 1. Surgical multi-path memory context
-        narrative_block  = self._get_surgical_context(query_vector)
+        narrative_block  = self._get_surgical_context(query_vector, top_k_docs)
 
         # 2. Cross-thread conversation recall
         history_matches = self.vdb.search_conversation(

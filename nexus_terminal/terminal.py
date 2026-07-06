@@ -114,9 +114,8 @@ def get_embedding_client():
     return openai.OpenAI(api_key=EMBEDDING_API_KEY, base_url=EMBEDDING_BASE_URL)
 
 def generate_completion(messages, temperature=0.7, max_tokens=1500, model=None):
-    global _active_model
     client = get_openai_client()
-    use_model = model or TEXT_MODEL
+    use_model = model or _active_model
     try:
         response = client.chat.completions.create(model=use_model, messages=messages, temperature=temperature, max_tokens=max_tokens)
         content = response.choices[0].message.content
@@ -327,48 +326,6 @@ def route_search_decision(user_input: str) -> dict:
         return {'search': search, 'query': query}
     except Exception:
         return {'search': False, 'query': ''}
-
-def construct_compacted_memory_context(tree):
-    blocks = []
-    blocks.append('── GLOBAL CONVERSATION MEMORY INDEX ──')
-
-    def _traverse(node, depth=0):
-        lines = []
-        indent = '  ' * depth
-        if isinstance(node, TopicNode) and node.topic_name != 'ROOT':
-            summary = (node.summary or 'Active discussion in progress.').strip()
-            lines.append(f'{indent}• {node.topic_name} [msgs {node.start_index}–{node.end_index}]')
-            lines.append(f'{indent}  ↳ {summary}')
-        for child in node.children:
-            if isinstance(child, TopicNode):
-                lines.extend(_traverse(child, depth + 1))
-        return lines
-    summaries = _traverse(tree.root)
-    blocks.extend(summaries if summaries else ['  (No topics indexed yet)'])
-    blocks.append('\n── ACTIVE THEMATIC CONTEXT PATH ──')
-    ancestors = tree.get_ancestors(tree.current_node, include_self=True, exclude_root=True)
-    if ancestors:
-        path = ' → '.join((n.topic_name for n in ancestors))
-        blocks.append(f'Thread: {path}')
-        for node in ancestors:
-            s = (node.summary or 'Expanding…').strip()
-            blocks.append(f'  • {node.topic_name}: {s}')
-    else:
-        blocks.append('  Thread: ROOT (first topic not yet created)')
-    blocks.append('\n── RECENT DETAILED CONVERSATION LOGS ──')
-    recent = tree.conversation[-8:] if tree.conversation else []
-    if recent:
-        for msg in recent:
-            role = msg.get('role', 'unknown').upper()
-            content = msg.get('content', '')
-            if isinstance(content, str) and len(content) > 600:
-                content = content[:600] + '… [truncated]'
-            elif isinstance(content, list):
-                content = '[multimodal message]'
-            blocks.append(f'[{role}]: {content}')
-    else:
-        blocks.append('  (No messages yet)')
-    return '\n'.join(blocks)
 
 def background_generate_title_and_rename(tree, first_user_prompt, first_ai_response, current_filepath):
     prompt = f'Based on the conversation below, output a concise 3–4-word title only.\nNo punctuation, quotes, or extra words. Just the title.\n\nUser: {first_user_prompt[:300]}\nAI: {first_ai_response[:300]}'
@@ -657,7 +614,10 @@ def run_chat_session(tree, is_new=False, temp_filepath=None):
                 else:
                     raise ValueError('Synthesizer not active or query vector empty')
             except Exception:
-                tree_context = construct_compacted_memory_context(tree)
+                if hasattr(tree, 'synthesizer') and tree.synthesizer:
+                    tree_context = tree.synthesizer._get_active_narrative_context(tree.current_node)
+                else:
+                    tree_context = '── GLOBAL CONVERSATION MEMORY INDEX ──\n  (Memory context unavailable)'
                 now_str = datetime.now().strftime('%A, %d %B %Y, %I:%M %p')
                 system_prompt = (
                     f"Today's date and time: {now_str}\n"

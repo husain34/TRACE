@@ -179,14 +179,13 @@ Result: The AI aggressively stopped the user.
 ```
 Phase 1 — Collect all frozen (inactive) TopicNodes
 Phase 2 — Generate missing summaries; embed all candidates
-Phase 3 — Compute pairwise cosine similarity
-Phase 4 — For each pair above threshold, apply 4 axioms:
+Phase 3 — Compute pairwise cosine similarity; for each pair above threshold, apply 4 axioms:
               Axiom 1 — Chronological Guard
               Axiom 2 — Frozen State check
               Axiom 3 — Similarity threshold (default 0.55)
               Axiom 4 — LLM Veto
            If all 4 pass → merge (newer becomes child of older)
-Phase 5 — Optional: prune trivial leaf messages
+Phase 4 — Optional: prune trivial leaf messages
 ```
 
 #### The Four Axioms in Detail
@@ -374,16 +373,13 @@ tree.save("sessions/chat_001.json", save_conversation=True)
 
 `save_conversation=True` embeds the raw message list so the session can be fully restored later.
 
----
-
-##### `CTree.load(filepath: str, api_key: str = None, base_url: str = None, model: str = None) -> CTree`
+##### `CTree.load(filepath: str, api_key: str = None, base_url: str = None, model: str = None, embed_fn: Callable = None) -> CTree`
 
 Restore a tree from a JSON file.
 
 ```python
 tree = CTree.load("sessions/chat_001.json", api_key="sk-...", embed_fn=embed)
-tree.vdb       = VectorDatabase("sessions/chat_001.db")
-
+tree.vdb = VectorDatabase("sessions/chat_001.db")
 ```
 
 ---
@@ -444,7 +440,7 @@ ROOT (sub-nodes: 3)
 
 A local SQLite vector store with two active tables: conversation vectors and topic summaries.
 
-> **Note on Scaling:** TRACE uses pure Python (`sqlite3` and `struct`) to avoid heavy dependencies and run instantly on any machine. This is perfectly sufficient for local agents and moderate conversation histories. However, for massive scale (millions of vectors), you will need to swap this module for a dedicated vector database like FAISS or Chroma.
+> **Note on Scaling:** TRACE uses SQLite (`sqlite3`) for storage, `numpy` for fast cosine similarity, and `struct` for compact binary packing — all chosen to keep the footprint small while running on any machine. For massive scale (millions of vectors), swap this module for FAISS or Chroma.
 
 ```python
 from trace_memory import VectorDatabase
@@ -455,8 +451,6 @@ from trace_memory import VectorDatabase
 ```python
 vdb = VectorDatabase("path/to/session.db")  # creates the DB if it doesn't exist
 ```
-
----
 
 ---
 
@@ -544,6 +538,7 @@ system_prompt = synth.synthesize_prompt(
     query_vector           = embed("Is the cake safe for Sarah?"),
     active_node            = tree.current_node,
     recent_messages        = tree.conversation[-6:],
+    top_k_docs             = 3,     # max topic branch paths to surface
     top_k_history          = 2,     # max past messages to recall
     min_history_similarity = 0.50,  # min cosine score for conversation recall
 )
@@ -665,6 +660,8 @@ TRACE loads `.env` automatically if `python-dotenv` is installed.
 |---|---|---|
 | `openai` | ≥ 1.0.0 | ✅ Yes |
 | `python-dotenv` | ≥ 1.0.0 | ✅ Yes |
+| `sentence-transformers` | ≥ 2.2.0 | ✅ Yes (local embed fallback) |
+| `numpy` | ≥ 1.21.0 | ✅ Yes (cosine similarity) |
 | `sqlite3` | built-in | ✅ Yes (no install needed) |
 | `struct` | built-in | ✅ Yes (no install needed) |
 

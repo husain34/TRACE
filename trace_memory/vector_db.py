@@ -29,11 +29,7 @@ def unpack_float_vector(blob):
         return []
     num_floats = len(blob) // 4
     format_string = '<' + str(num_floats) + 'f'
-    unpacked = struct.unpack(format_string, blob)
-    result = []
-    for val in unpacked:
-        result.append(val)
-    return result
+    return list(struct.unpack(format_string, blob))
 
 def cosine_similarity(v1, v2):
     if not v1 or not v2 or len(v1) != len(v2):
