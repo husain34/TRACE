@@ -25,8 +25,8 @@ from .ctree import CTree, Node, TopicNode, MessageNode
 from .vector_db import VectorDatabase, ConversationVector
 from .prompt_synthesizer import PromptSynthesizer
 
-__version__ = "1.0.6"
-__author__  = "Husain"
+__version__ = "1.0.7"
+__author__  = "Husain Ghulam"
 __license__ = "Apache-2.0"
 
 __all__ = [
