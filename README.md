@@ -4,11 +4,11 @@
 
 # TRACE — Temporal Retrieval And Context Engine
 
-> **Hierarchical, background tree organizing memory for long-running LLM agents.**  
-> Reduce context loss. Reduce broken agent tasks. Stop paying for tokens on chat history you don't need.
+> **A hierarchical, background memory tree for long-running LLM agents.**  
+> TRACE organizes conversation history into a structured semantic map, allowing for efficient, multi-path retrieval of long-term context without relying on full-history prompt injection.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://python.org)
-[![PyPI version](https://badge.fury.io/py/trace-memory.svg)](https://badge.fury.io/py/trace-memory)
+[![PyPI version](https://img.shields.io/badge/PyPI-v1.0.7-blue.svg)](https://pypi.org/project/trace-memory/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![OpenAI-compatible](https://img.shields.io/badge/LLM-OpenAI%20compatible-orange)](https://platform.openai.com/docs/api-reference)
 [![Benchmark](https://img.shields.io/badge/MemoryAgentBench-83.8%25-success)](benchmark_results/trace_120b_eventqa_64k_results.json)
@@ -22,7 +22,7 @@
 ## Table of Contents
 
 1. [What is TRACE?](#1-what-is-trace)
-2. [Why Standard RAG is Poorly Suited for Agent Memory](#2-why-standard-rag-is-poorly-suited-for-agent-memory)
+2. [Limitations of Standard RAG for Agent Memory](#2-limitations-of-standard-rag-for-agent-memory)
 3. [The Architecture: How TRACE Fixes It](#3-the-architecture-how-trace-fixes-it)
    - [The Foundation — ChatIndex & the B+Tree](#31-the-foundation--chatindex--the-btree)
    - [Feature 1 — Multi-Path Surgical Retrieval](#32-feature-1--multi-path-surgical-retrieval)
@@ -40,7 +40,7 @@
    - [With OpenAI](#72-with-openai)
    - [With NVIDIA NIM / any OpenAI-compatible endpoint](#73-with-nvidia-nim--any-openai-compatible-endpoint)
 
-8. [Edge-Case Stress Tests & Validation](#8-edge-case-stress-tests--validation)
+8. [Benchmarks & Validation](#8-benchmarks--validation)
 9. [Environment Variables](#9-environment-variables)
 10. [Dependencies](#10-dependencies)
 11. [Contributing](#11-contributing)
@@ -60,7 +60,7 @@ The result: an agent **designed to preserve cross-session constraints through hi
 
 ---
 
-## 2. Why Standard RAG is Poorly Suited for Agent Memory
+## 2. Limitations of Standard RAG for Agent Memory
 
 <div align="center">
   <img src="assets/architecture.png" alt="Standard RAG vs TRACE Architecture">
@@ -212,7 +212,7 @@ When `prune_trivial_leaves=True` is passed to `reorganize()`, TRACE detects Mess
 ## 4. Installation
 
 ```bash
-pip install trace-memory
+pip install trace-memory==1.0.7
 ```
 
 ---
@@ -628,13 +628,23 @@ When `CTree` runs in the background, it performs simple, deterministic classific
 
 ---
 
-## 8. Edge-Case Stress Tests & Validation
+## 8. Benchmarks & Validation
+
+### Agent Memory Bench Comparison
+
+TRACE has been tested against standard Agent Memory Benchmarks. A comparison with other memory architectures demonstrates its efficiency in long-context retrieval tasks.
+
+<div align="center">
+  <img src="assets/Comparison.png" alt="Comparison of Memory Architectures">
+</div>
+
+### Edge-Case Stress Tests
 
 TRACE was validated against five adversarial test scenarios:
 
 | Test | Description | Result |
 |---|---|---|
-| **Needle in a Haystack** | A critical constraint buried deep in a 200-message session | ✅ Retrieved with >0.7 cosine score |
+| **Needle in a Haystack** | A critical constraint buried deep in a 200-message session | ✅ Retrieved with >0.25 cosine score |
 | **Memory Overwrites** | User updates a constraint ("actually, Sarah can eat nuts now") | ✅ Newer node supersedes older via Chronological Guard |
 | **Semantic Drift (Veto Test)** | Two topics share keywords but are in different domains (Python the snake vs. Python the language) | ✅ LLM Veto correctly aborted the merge |
 | **Ship of Theseus** | Gradual topic drift — same entity discussed across 10 different branches | ✅ Reorganizer correctly consolidated into a shared parent |
@@ -646,8 +656,8 @@ TRACE was validated against five adversarial test scenarios:
 
 | Variable | Default | Description |
 |---|---|---|
-| `OPENAI_BASE_URL` | `http://127.0.0.1:1234/v1` | LLM API endpoint |
-| `OPENAI_API_KEY` | `lm-studio` | API key |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | LLM API endpoint (standard PyPI usage) |
+| `OPENAI_API_KEY` | `None` | Your LLM API key |
 
 Set these in a `.env` file or directly in your shell.  
 TRACE loads `.env` automatically if `python-dotenv` is installed.
@@ -675,7 +685,6 @@ Areas where contributions are especially valuable:
 - Additional embedding model adapters (Sentence Transformers, Cohere, etc.)
 - Async support for `add()` and `reorganize()`
 - Web UI for tree visualisation
-- Benchmarks against other memory architectures (MemGPT, Zep, etc.)
 
 ---
 
