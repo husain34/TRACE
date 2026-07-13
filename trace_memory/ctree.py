@@ -374,6 +374,38 @@ class CTree:
             import sys
             print(f"[TRACE] \u26a0 VDB upsert failed for node '{node.topic_name}': {e}", file=sys.stderr)
 
+    def _upsert_active_node_to_vdb(self):
+        """
+        Upsert the currently active (live) TopicNode into the VDB so that
+        surgical retrieval can surface it even before the node is frozen and
+        formally summarised.  Uses the topic_name as a lightweight proxy when
+        no LLM summary exists yet.
+        """
+        node = self.current_node
+        if node is None or node is self.root:
+            return
+        if self.vdb is None or self.embed_fn is None:
+            return
+        # Use the existing summary if available, otherwise fall back to the
+        # topic name so we always have something to embed.
+        text = (node.summary or node.topic_name or "").strip()
+        if not text:
+            return
+        try:
+            embedding = self.embed_fn(text)
+            self.vdb.upsert_topic_summary(
+                node_id     = node.node_id,
+                topic_name  = node.topic_name,
+                summary     = text,
+                embedding   = embedding,
+                start_index = node.start_index,
+                end_index   = node.end_index,
+                depth       = None,
+            )
+        except Exception as e:
+            import sys
+            print(f"[TRACE] \u26a0 Active node VDB upsert failed for '{node.topic_name}': {e}", file=sys.stderr)
+
     # ── Public: add exchange ──────────────────────────────────────────────────
 
     def add(self, messages: List[dict]):
@@ -461,6 +493,10 @@ class CTree:
                     self.vdb.add_conversation_message(c_vec)
                 except Exception:
                     pass
+
+        # Always keep the active node indexed in the VDB so surgical retrieval
+        # can surface the current topic even before it is frozen & summarised.
+        self._upsert_active_node_to_vdb()
 
         if self.auto_save_path:
             self.save(self.auto_save_path, save_conversation=True)
@@ -1110,7 +1146,7 @@ class CTree:
         candidates   = [n for n in all_topics if n not in live_ancestors and self._is_frozen_node(n)]
 
         if len(candidates) < 2:
-            return {"merged": 0, "pruned": 0, "skipped": 0, "duration_secs": _time.time() - t0}
+            return {"merged": 0, "pruned": 0, "skipped": 0, "duration_secs": time.time() - t0}
 
         # Phase 2 — embed candidates
         self._generate_summaries_for_frozen_nodes()
